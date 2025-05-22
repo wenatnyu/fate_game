@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>西幻大陆冒险：命运之轮</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+            background-image: url('backgrounds/tavern.png');
+            background-size: cover;
+            background-position: center;
+            transition: background-image 1s ease;
+        }
+        
+        #game-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+        
+        #scene-image {
+            width: 100%;
+            height: 400px;
+            object-fit: contain;
+            margin-bottom: 20px;
+            border: 2px solid #5a3e2b;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        #text-display {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            min-height: 150px;
+            background-color: rgba(20, 20, 20, 0.8);
+            padding: 15px;
+            border-left: 4px solid #8b5a2b;
+        }
+        
+        #choices-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .choice-btn {
+            background-color: #3a2c1a;
+            color: #e0d0b8;
+            border: 1px solid #8b5a2b;
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+        
+        .choice-btn:hover {
+            background-color: #5a3e2b;
+            transform: translateX(5px);
+        }
+        
+        #character-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: rgba(30, 20, 10, 0.8);
+            border-bottom: 2px solid #8b5a2b;
+        }
+        
+        .stat {
+            display: flex;
+            align-items: center;
+        }
+        
+        .stat-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 5px;
+        }
+        
+        #inventory-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #5a3e2b;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        #music-control {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        #video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: black;
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #cutscene-video {
+            max-width: 90%;
+            max-height: 90%;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="character-info">
+            <div class="stat">
+                <img src="icons/health.png" class="stat-icon" alt="生命值">
+                <span id="health">100/100</span>
+            </div>
+            <div class="stat">
+                <img src="icons/mana.png" class="stat-icon" alt="魔力">
+                <span id="mana">50/50</span>
+            </div>
+            <div class="stat">
+                <img src="icons/gold.png" class="stat-icon" alt="金币">
+                <span id="gold">25</span>
+            </div>
+            <div class="stat">
+                <img src="icons/reputation.png" class="stat-icon" alt="声望">
+                <span id="reputation">中立</span>
+            </div>
+        </div>
+        
+        <img id="scene-image" src="scenes/tavern.png" alt="场景图片">
+        
+        <div id="text-display">
+            欢迎来到艾尔德里亚大陆，一个充满魔法与传奇的世界。你是一名初出茅庐的冒险者，在"醉龙酒馆"开始了你的旅程...
+        </div>
+        
+        <div id="choices-container">
+            <button class="choice-btn" onclick="makeChoice(1)">与酒馆老板交谈</button>
+            <button class="choice-btn" onclick="makeChoice(2)">观察酒馆内的其他客人</button>
+            <button class="choice-btn" onclick="makeChoice(3)">查看你的冒险者手册</button>
+        </div>
+        
+        <button id="inventory-btn" onclick="showInventory()">🎒</button>
+        
+        <div id="music-control">
+            <button onclick="toggleMusic()">播放/暂停音乐</button>
+            <button onclick="changeTrack(1)">酒馆音乐</button>
+            <button onclick="changeTrack(2)">冒险音乐</button>
+            <button onclick="changeTrack(3)">战斗音乐</button>
+        </div>
+    </div>
+    
+    <audio id="background-music" loop>
+        <source src="music/tavern.mp3" type="audio/mpeg">
+    </audio>
+    
+    <div id="video-container">
+        <video id="cutscene-video" controls>
+            <source src="videos/intro.mp4" type="video/mp4">
+            您的浏览器不支持视频播放。
+        </video>
+    </div>
+    
+    <script>
+        // 游戏状态
+        const gameState = {
+            health: 100,
+            maxHealth: 100,
+            mana: 50,
+            maxMana: 50,
+            gold: 25,
+            reputation: "中立",
+            inventory: ["初级治疗药水", "铁剑", "冒险者徽章"],
+            flags: {
+                metBartender: false,
+                sawStrangeFigure: false
+            },
+            currentScene: "tavern_intro"
+        };
+        
+        // 场景数据库
+        const scenes = {
+            tavern_intro: {
+                text: "欢迎来到艾尔德里亚大陆，一个充满魔法与传奇的世界。你是一名初出茅庐的冒险者，在'醉龙酒馆'开始了你的旅程...",
+                image: "scenes/tavern.png",
+                music: "music/tavern.mp3",
+                choices: [
+                    { text: "与酒馆老板交谈", nextScene: "talk_bartender" },
+                    { text: "观察酒馆内的其他客人", nextScene: "observe_tavern" },
+                    { text: "查看你的冒险者手册", nextScene: "check_journal" }
+                ]
+            },
+            talk_bartender: {
+                text: "酒馆老板擦拭着一个玻璃杯，抬头看了你一眼。'新面孔啊，'他说道，'在这里，像你这样的冒险者要么发财，要么送命。想要点什么？'",
+                image: "scenes/bartender.png",
+                choices: [
+                    { text: "询问最近的传闻", nextScene: "ask_rumors" },
+                    { text: "点一杯麦酒", nextScene: "order_ale", condition: () => gameState.gold >= 2 },
+                    { text: "点一杯精灵葡萄酒", nextScene: "order_wine", condition: () => gameState.gold >= 5 },
+                    { text: "返回", nextScene: "tavern_intro" }
+                ],
+                onEnter: () => {
+                    gameState.flags.metBartender = true;
+                    updateStatsDisplay();
+                }
+            },
+            observe_tavern: {
+                text: "你环顾四周，酒馆里坐着形形色色的人：几个粗犷的佣兵在大声谈笑，一个披着斗篷的神秘人物独自坐在角落，还有一群商人正在讨论贸易路线。",
+                image: "scenes/tavern_interior.png",
+                choices: [
+                    { text: "接近佣兵们", nextScene: "approach_mercenaries" },
+                    { text: "观察神秘人物", nextScene: "observe_stranger" },
+                    { text: "偷听商人的谈话", nextScene: "eavesdrop_merchants", condition: () => gameState.reputation !== "知名" },
+                    { text: "返回", nextScene: "tavern_intro" }
+                ],
+                onEnter: () => {
+                    gameState.flags.sawStrangeFigure = true;
+                }
+            },
+            check_journal: {
+                text: "你翻开冒险者手册，上面记录着一些基本信息：\n1. 你是一名初出茅庐的冒险者\n2. 你有一把铁剑和一瓶初级治疗药水\n3. 你的目标是成为艾尔德里亚大陆上最著名的冒险者",
+                image: "scenes/tavern.png",
+                choices: [
+                    { text: "返回", nextScene: "tavern_intro" }
+                ]
+            },
+            ask_rumors: {
+                text: "'最近啊，'酒馆老板压低声音说，'听说北边的森林里出现了一个神秘的遗迹，不少冒险者都去了，但很少有人回来...'",
+                image: "scenes/bartender.png",
+                choices: [
+                    { text: "询问更多细节", nextScene: "ask_more_rumors" },
+                    { text: "返回", nextScene: "talk_bartender" }
+                ]
+            },
+            ask_more_rumors: {
+                text: "'那个遗迹据说是一个古代魔法师的实验室，'酒馆老板继续说道，'里面不仅有珍贵的魔法物品，还有失传已久的魔法知识。但是...'他看了看四周，声音更低了，'据说有可怕的魔法生物在守护着那里。'",
+                image: "scenes/bartender.png",
+                choices: [
+                    { text: "询问具体位置", nextScene: "ask_location" },
+                    { text: "询问报酬", nextScene: "ask_reward" },
+                    { text: "返回", nextScene: "ask_rumors" }
+                ]
+            },
+            ask_location: {
+                text: "'从镇子北门出去，沿着大路走大约一天的路程，'酒馆老板说，'你会看到一片被迷雾笼罩的森林。遗迹就在森林深处，但具体位置...'他耸耸肩，'你得自己去找了。'",
+                image: "scenes/bartender.png",
+                choices: [
+                    { text: "询问报酬", nextScene: "ask_reward" },
+                    { text: "返回", nextScene: "ask_more_rumors" }
+                ]
+            },
+            ask_reward: {
+                text: "'听说有人愿意出1000金币收购遗迹里的任何魔法物品，'酒馆老板说，'而且，如果你能找到那个魔法师的魔法书，报酬可能会翻倍。不过...'他意味深长地看着你，'活着回来才是最重要的。'",
+                image: "scenes/bartender.png",
+                choices: [
+                    { text: "询问具体位置", nextScene: "ask_location" },
+                    { text: "返回", nextScene: "ask_more_rumors" }
+                ]
+            },
+            order_ale: {
+                text: "你点了一杯麦酒，花费了2个金币。酒馆老板递给你一杯冒着泡沫的麦酒，'祝你好运，冒险者。'",
+                image: "scenes/bartender.png",
+                choices: [
+                    { text: "返回", nextScene: "talk_bartender" }
+                ],
+                onEnter: () => {
+                    gameState.gold -= 2;
+                    updateStatsDisplay();
+                }
+            },
+            order_wine: {
+                text: "你点了一杯精灵葡萄酒，花费了5个金币。酒馆老板小心翼翼地倒出一杯晶莹剔透的葡萄酒，'这可是上等货，慢慢享用。'",
+                image: "scenes/bartender.png",
+                choices: [
+                    { text: "返回", nextScene: "talk_bartender" }
+                ],
+                onEnter: () => {
+                    gameState.gold -= 5;
+                    updateStatsDisplay();
+                }
+            },
+            approach_mercenaries: {
+                text: "你走向那群佣兵。他们注意到你的接近，其中一个身材魁梧的佣兵转过头来，'新来的？想接活干吗？'",
+                image: "scenes/tavern_interior.png",
+                choices: [
+                    { text: "询问有什么工作", nextScene: "ask_jobs" },
+                    { text: "返回", nextScene: "observe_tavern" }
+                ]
+            },
+            observe_stranger: {
+                text: "你仔细观察那个神秘人物。他/她似乎注意到了你的目光，微微抬起头，斗篷下露出一双发着微光的眼睛。",
+                image: "scenes/tavern_interior.png",
+                choices: [
+                    { text: "上前搭话", nextScene: "talk_stranger" },
+                    { text: "返回", nextScene: "observe_tavern" }
+                ]
+            },
+            eavesdrop_merchants: {
+                text: "你假装漫不经心地靠近商人们。'...那个遗迹里的宝藏据说价值连城，但守卫森严...'你听到其中一个商人小声说道。",
+                image: "scenes/tavern_interior.png",
+                choices: [
+                    { text: "返回", nextScene: "observe_tavern" }
+                ]
+            }
+        };
+        
+        // 初始化游戏
+        function initGame() {
+            loadScene("tavern_intro");
+            document.getElementById('background-music').volume = 0.3;
+        }
+        
+        // 加载场景
+        function loadScene(sceneId) {
+            const scene = scenes[sceneId];
+            if (!scene) {
+                console.error(`Scene ${sceneId} not found`);
+                return;
+            }
+            
+            gameState.currentScene = sceneId;
+            
+            // 更新文本
+            document.getElementById('text-display').textContent = scene.text;
+            
+            // 更新图片
+            const sceneImage = document.getElementById('scene-image');
+            if (sceneImage && scene.image) {
+                sceneImage.src = scene.image;
+            }
+            
+            // 更新音乐
+            if (scene.music) {
+                const musicPlayer = document.getElementById('background-music');
+                const currentSrc = musicPlayer.src.split('/').pop();
+                const newSrc = scene.music.split('/').pop();
+                
+                if (currentSrc !== newSrc) {
+                    musicPlayer.src = scene.music;
+                }
+            }
+            
+            // 更新选择项
+            const choicesContainer = document.getElementById('choices-container');
+            choicesContainer.innerHTML = '';
+            
+            scene.choices.forEach(choice => {
+                if (choice.condition && !choice.condition()) return;
+                
+                const button = document.createElement('button');
+                button.className = 'choice-btn';
+                button.textContent = choice.text;
+                button.onclick = () => makeChoice(scene.choices.indexOf(choice));
+                choicesContainer.appendChild(button);
+            });
+            
+            // 执行场景进入时的回调
+            if (scene.onEnter) {
+                scene.onEnter();
+            }
+        }
+        
+        // 做出选择
+        function makeChoice(choiceIndex) {
+            const currentScene = scenes[gameState.currentScene];
+            if (!currentScene) {
+                console.error(`Current scene ${gameState.currentScene} not found`);
+                return;
+            }
+            
+            const choice = currentScene.choices[choiceIndex];
+            if (!choice) {
+                console.error(`Choice ${choiceIndex} not found in scene ${gameState.currentScene}`);
+                return;
+            }
+            
+            if (choice.nextScene.startsWith("video:")) {
+                playCutscene(choice.nextScene.replace("video:", ""));
+            } else {
+                loadScene(choice.nextScene);
+            }
+        }
+        
+        // 播放过场动画
+        function playCutscene(videoName) {
+            const videoContainer = document.getElementById('video-container');
+            const video = document.getElementById('cutscene-video');
+            
+            video.src = `videos/${videoName}.mp4`;
+            videoContainer.style.display = 'flex';
+            
+            video.onended = () => {
+                videoContainer.style.display = 'none';
+                // 这里可以添加视频播放后跳转到哪个场景
+            };
+            
+            video.play();
+        }
+        
+        // 显示物品栏
+        function showInventory() {
+            const text = "物品栏:\n" + gameState.inventory.join("\n");
+            document.getElementById('text-display').textContent = text;
+        }
+        
+        // 更新状态显示
+        function updateStatsDisplay() {
+            document.getElementById('health').textContent = `${gameState.health}/${gameState.maxHealth}`;
+            document.getElementById('mana').textContent = `${gameState.mana}/${gameState.maxMana}`;
+            document.getElementById('gold').textContent = gameState.gold;
+            document.getElementById('reputation').textContent = gameState.reputation;
+        }
+        
+        // 音乐控制
+        function toggleMusic() {
+            const music = document.getElementById('background-music');
+            if (music.paused) {
+                music.play();
+            } else {
+                music.pause();
+            }
+        }
+        
+        function changeTrack(trackNum) {
+            const tracks = [
+                "music/tavern.mp3",
+                "music/adventure.mp3",
+                "music/battle.mp3"
+            ];
+            
+            const music = document.getElementById('background-music');
+            music.src = tracks[trackNum - 1];
+            music.play();
+        }
+        
+        // 初始化游戏
+        window.onload = initGame;
+    </script>
+</body>
+</html>
